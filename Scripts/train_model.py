@@ -1,26 +1,58 @@
+import json
+import os
+import matplotlib.pyplot as plt
 import tensorflow as tf
 import numpy as np
 from keras import layers, models, callbacks, regularizers, optimizers
-import matplotlib.pyplot as plt
-from load_data import load_mnist
+from load_data import load_data
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
-import json
 
 
 class LossHistory(callbacks.Callback):
 
-    def on_train_begin(self, logs=None):
-        with open('Outputs/loss_history.txt', 'w') as arquivo:
-            arquivo.write('Inicio do treinamento\n')
+    def on_train_begin(self, logs=None) -> None:
+        with open("Outputs/loss_history.txt", "w") as arquivo:
+            arquivo.write("Inicio do treinamento\n")
 
-    def on_epoch_end(self, epoch, logs=None):
-        with open('Outputs/loss_history.txt', 'a') as arquivo:
-            arquivo.write(f'Epoca {epoch + 1} - Erro: {logs["loss"]}, Acuracia: {logs["accuracy"]}\n')
+    def on_epoch_end(self, epoch, logs=None) -> None:
+        with open("Outputs/loss_history.txt", "a") as arquivo:
+            arquivo.write(f"Epoca {epoch + 1} - Acuracia: {logs['accuracy']}, Erro: {logs['loss']}\n")
 
 
-if __name__ == '__main__':
+def save_weights(model: models.Model, filename: str, path: str) -> None:
+    """
+    Salva os pesos do modelo no diretório especificado.
+    Arquivo salvo com nome {filename}.weights.h5
+    """
+    os.makedirs(path, exist_ok=True)
+    final_path = os.path.join(path, f"{filename}.weights.h5")
+    model.save_weights(final_path)
+
+
+def save_hyperparameters(hyperparameters: dict, path: str) -> None:
+    """
+    Salva o JSON dos hiperparâmetros do modelo no diretório especificado.
+    Arquivo com nome hyperparameters.json
+    """
+    os.makedirs(path, exist_ok=True)
+    final_path = os.path.join(path, "hyperparameters.json")
+    with open(final_path, "w") as file:
+        json.dump(hyperparameters, file)
+
+
+def save_model(model: models.Model, filename: str, path: str) -> None:
+    """
+    Salva o modelo no diretório especificado.
+    Arquivo com nome {filename}.keras
+    """
+    os.makedirs(path, exist_ok=True)
+    final_path = os.path.join(path, f"{filename}.keras")
+    model.save(final_path)
+
+
+if __name__ == "__main__":
     batch_size = 128
-    initial_learning_rate = 0.01
+    initial_learning_rate = 0.0001
     dropout_rate = 0.2
     l2_regularization = 0.001
     epochs = 10
@@ -42,30 +74,29 @@ if __name__ == '__main__':
     # Definindo a arquitetura da rede neural
     model = models.Sequential([
         layers.InputLayer(shape=(28, 28, 1)),
-        layers.Conv2D(filters=32, kernel_size=(3, 3), activation='relu'),
+        layers.Conv2D(filters=32, kernel_size=(3, 3), activation="relu"),
         layers.MaxPooling2D(pool_size=(2, 2)),
-        layers.Conv2D(filters=64, kernel_size=(3, 3), activation='relu'),
+        layers.Conv2D(filters=64, kernel_size=(3, 3), activation="relu"),
         layers.MaxPooling2D(pool_size=(2, 2)),
-        layers.Conv2D(filters=64, kernel_size=(3, 3), activation='relu'),
+        layers.Conv2D(filters=64, kernel_size=(3, 3), activation="relu"),
         layers.Flatten(),
-        layers.Dense(units=64, activation='relu', kernel_regularizer=regularizers.l2(l2_regularization)),
+        layers.Dense(units=64, activation="relu", kernel_regularizer=regularizers.l2(l2_regularization)),
         layers.Dropout(rate=dropout_rate),
-        layers.Dense(units=10, activation='softmax')
+        layers.Dense(units=10, activation="softmax")
     ])
 
     parada_antecipada = callbacks.EarlyStopping(
-        monitor='val_loss',
+        monitor="val_loss",
         min_delta=0.001,
         patience=2,
         restore_best_weights=True,
         verbose=2
     )
     optimizer = optimizers.Adam(learning_rate=initial_learning_rate)
-    model.compile(optimizer=optimizer, loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer=optimizer, loss="sparse_categorical_crossentropy", metrics=["accuracy"])
     model.summary()
 
     # Salvando modelo
-    model.save_weights("Models/pesos_iniciais.weights.h5")
     hyperparameters = {
         "conv_layers": [
             {"filters": layer.filters, "kernel_size": layer.kernel_size, "activation": layer.activation.__name__}
@@ -89,9 +120,13 @@ if __name__ == '__main__':
         }
 
     }
-    with open('Outputs/hyperparameters.json', 'w') as file:
-        json.dump(hyperparameters, file)
+    current_path = os.path.dirname(__file__)
+    path_Models = os.path.join(current_path, '..', 'Models')
+    path_Outputs = os.path.join(current_path, '..', 'Outputs')
+    save_hyperparameters(hyperparameters, path_Outputs)
+    save_weights(model, "pesos_iniciais", path_Models)
 
+    # Treinando o modelo
     history = model.fit(
         training_dataset, epochs=epochs,
         batch_size=batch_size,
@@ -100,34 +135,39 @@ if __name__ == '__main__':
         verbose=2
     )
 
-    model.save_weights("Models/pesos_finais.weights.h5")
-    model.save("Models/modelo_final.keras")
+    # Salvando pesos finais e modelo
+    save_weights(model, "pesos_finais", path_Models)
+    save_model(model, "modelo", path_Models)
 
+    # Avaliando o modelo
     metrics = model.evaluate(test_dataset, verbose=2)
-    print(f'Test Loss: {metrics[0]}')
-    print(f'Test Accuracy: {metrics[1]}')
+    print(f"Test Loss: {metrics[0]}")
+    print(f"Test Accuracy: {metrics[1]}")
 
     # Acurácias de treino e validação
-    plt.plot(history.history['accuracy'])
-    plt.plot(history.history['val_accuracy'])
-    plt.title('Acurácia do Modelo')
-    plt.ylabel('Acurácia')
-    plt.xlabel('Epoca')
-    plt.legend(['Treino', 'Validação'], loc='upper left')
+    plt.plot(history.history["accuracy"])
+    plt.plot(history.history["val_accuracy"])
+    plt.title("Acurácia do Modelo")
+    plt.ylabel("Acurácia")
+    plt.xlabel("Epoca")
+    plt.legend(["Treino", "Validação"], loc="upper left")
     plt.show()
 
-    # Matriz de Confusão
+    # Previsões no dataset de teste
     test_predictions = model.predict(test_dataset)
     test_labels = []
     for _, label in test_dataset:
         test_labels.extend(label.numpy())
     test_predictions = tf.argmax(test_predictions, axis=1)
 
-    np.savetxt('Outputs/predictions.csv', test_predictions.numpy(), delimiter=',', fmt='%d')
+    prediction_path = os.path.join(path_Outputs, "predictions.csv")
+    np.savetxt(prediction_path, test_predictions.numpy(), delimiter=",", fmt="%d")  # Salvando previsões
 
+    # Matriz de confusão
     matriz_confusao = confusion_matrix(test_labels, test_predictions)
     ConfusionMatrixDisplay(matriz_confusao).plot()
 
-    plt.savefig('Outputs/matriz_confusao.png')
+    matrix_path = os.path.join(path_Outputs, "matriz_confusao.png")
+    plt.savefig(matrix_path)
 
     plt.show()
