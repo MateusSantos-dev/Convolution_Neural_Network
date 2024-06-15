@@ -132,7 +132,7 @@ if __name__ == "__main__":
     current_path = os.path.dirname(__file__)
     path_Models = os.path.join(current_path, '..', 'Models')
     path_Outputs = os.path.join(current_path, '..', 'Outputs')
-    save_hyperparameters(hyperparameters, path_Outputs)
+    save_hyperparameters(hyperparameters, path_Models)
     save_weights(model, "pesos_iniciais", path_Models)
 
     # Treinando o modelo
