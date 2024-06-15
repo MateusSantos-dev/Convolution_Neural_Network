@@ -56,7 +56,13 @@ if __name__ == "__main__":
     dropout_rate = 0.2
     l2_regularization = 0.001
     epochs = 10
-    training_dataset, test_dataset = load_mnist(batch_size)
+    is_binary_classification = False
+    training_dataset, test_dataset = load_data(batch_size, binary_classification=is_binary_classification)
+
+    if is_binary_classification:
+        output_size = 2
+    else:
+        output_size = 10
 
     # dividindo o dataset de treino em treino e validação, considerando batch_size
     validation_split = 0.1
@@ -68,7 +74,10 @@ if __name__ == "__main__":
     A primeira camada de convolução tem 32 filtros, a segunda tem 64 filtros e a terceira tem 64 filtros.
     Estamos usando kernel de tamanho 3x3 e função de ativação ReLU. 
     As camadas de pooling tem tamanho 2x2.
-    A camada densa tem 64 neurônios e a camada de saída tem 10 neurônios porque são 10 dígitos.
+    A camada densa tem 64 neurônios
+    Usamos dropout e regularização L2 para evitar overfitting.
+    A camada de saída tem 10 neurônios ou 2 neurônios, 
+        dependendo se estamos fazendo classificação multiclasse ou binária.
     """
 
     # Definindo a arquitetura da rede neural
@@ -82,7 +91,7 @@ if __name__ == "__main__":
         layers.Flatten(),
         layers.Dense(units=64, activation="relu", kernel_regularizer=regularizers.l2(l2_regularization)),
         layers.Dropout(rate=dropout_rate),
-        layers.Dense(units=10, activation="softmax")
+        layers.Dense(units=output_size, activation="softmax")
     ])
 
     parada_antecipada = callbacks.EarlyStopping(
