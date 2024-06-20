@@ -18,10 +18,13 @@ pip install -r requirements.txt
 
 ## Uso
 
-Clone o repositório e rode o arquivo principal usando:
+Clone o repositório e rode a entrada para API usando:
 ```bash
-python Scripts/train_model.py
+python entrypoint.py
 ```
+Crie requisições tipo POST para a API.
+Um exemplo de utilização foi disponibilizado em `API/exemplo.postman_collection.json`.
+
 
 ## Estrutura do Projeto
 
@@ -41,6 +44,7 @@ python Scripts/train_model.py
 ### Diretório `scripts`
 
 - `load_data.py`: Script para carregamento e pré-processamento dos dados.
-- `train_model.py`: Script principal para treinamento e avaliação do modelo.
+- `train_model.py`: Script para treinamento modelo.
+- `evaluate_model.py`: Script para avaliação do modelo.
 
 
