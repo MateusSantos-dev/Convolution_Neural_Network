@@ -1,11 +1,9 @@
 import json
 import os
 import matplotlib.pyplot as plt
-import tensorflow as tf
-import numpy as np
+from API.schemas import CNNInput
 from keras import layers, models, callbacks, regularizers, optimizers
-from load_data import load_data
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+from typing import List, Dict, Any, Optional
 
 
 class LossHistory(callbacks.Callback):
@@ -50,133 +48,139 @@ def save_model(model: models.Model, filename: str, path: str) -> None:
     model.save(final_path)
 
 
-if __name__ == "__main__":
-    batch_size = 128
-    initial_learning_rate = 0.0001
-    dropout_rate = 0.2
-    l2_regularization = 0.001
-    epochs = 10
-    is_binary_classification = False
-    training_dataset, test_dataset = load_data(batch_size, binary_classification=is_binary_classification)
+def create_model(network_layers: List[Dict[str, Any]]):
+    """Cria um modelo de rede neural convolucional com base nas camadas especificadas."""
+    model = models.Sequential()
+    try:
+        model.add(layers.InputLayer(shape=(28, 28, 1)))
+        for layer in network_layers:
+            if layer["type"] == "conv":
+                model.add(layers.Conv2D(
+                    filters=layer["filters"],
+                    kernel_size=layer["kernel_size"],
+                    activation=layer["activation"]))
+            elif layer["type"] == "pool":
+                model.add(layers.MaxPooling2D(pool_size=layer["pool_size"]))
+            elif layer["type"] == "flatten":
+                model.add(layers.Flatten())
+            elif layer["type"] == "dense":
+                lambda_l2 = layer.get("lambda_l2", 0)
+                model.add(layers.Dense(
+                    units=layer["units"],
+                    activation=layer["activation"],
+                    kernel_regularizer=regularizers.l2(lambda_l2) if lambda_l2 > 0 else None))
+            elif layer["type"] == "dropout":
+                model.add(layers.Dropout(rate=layer["rate"]))
+            else:
+                raise ValueError(f"Tipo de camada desconhecido: {layer['type']}"
+                                 f"Escolha entre 'conv', 'pool', 'flatten', 'dense' e 'dropout'")
+    except KeyError as e:
+        raise ValueError(f"Campo obrigatório não encontrado: {e}")
+    return model
 
-    if is_binary_classification:
-        output_size = 2
+
+def create_optimizer(optimizer_name: str, learning_rate: Optional[float]):
+    """Cria um otimizador com base no nome e taxa de aprendizado especificados"""
+    if optimizer_name == "Adam":
+        return optimizers.Adam(learning_rate=learning_rate if learning_rate else 0.001)
+    elif optimizer_name == "SGD":
+        return optimizers.SGD(learning_rate=learning_rate if learning_rate else 0.01)
     else:
-        output_size = 10
+        raise ValueError(f"Otimizador não reconhecido: {optimizer_name}"
+                         f"Escolha entre 'Adam' e 'SGD'")
 
-    # dividindo o dataset de treino em treino e validação, considerando batch_size
-    validation_split = 0.1
-    training_size = 60000  # tamanho do dataset MNIST
-    validation_size = int(training_size * validation_split)
-    validation_dataset = training_dataset.take(validation_size // batch_size)
 
-    """
-    A primeira camada de convolução tem 32 filtros, a segunda tem 64 filtros e a terceira tem 64 filtros.
-    Estamos usando kernel de tamanho 3x3 e função de ativação ReLU. 
-    As camadas de pooling tem tamanho 2x2.
-    A camada densa tem 64 neurônios
-    Usamos dropout e regularização L2 para evitar overfitting.
-    A camada de saída tem 10 neurônios ou 2 neurônios, 
-        dependendo se estamos fazendo classificação multiclasse ou binária.
-    """
-
-    # Definindo a arquitetura da rede neural
-    model = models.Sequential([
-        layers.InputLayer(shape=(28, 28, 1)),
-        layers.Conv2D(filters=32, kernel_size=(3, 3), activation="relu"),
-        layers.MaxPooling2D(pool_size=(2, 2)),
-        layers.Conv2D(filters=64, kernel_size=(3, 3), activation="relu"),
-        layers.MaxPooling2D(pool_size=(2, 2)),
-        layers.Conv2D(filters=64, kernel_size=(3, 3), activation="relu"),
-        layers.Flatten(),
-        layers.Dense(units=64, activation="relu", kernel_regularizer=regularizers.l2(l2_regularization)),
-        layers.Dropout(rate=dropout_rate),
-        layers.Dense(units=output_size, activation="softmax")
-    ])
-
-    parada_antecipada = callbacks.EarlyStopping(
-        monitor="val_loss",
-        min_delta=0.001,
-        patience=2,
+def create_early_stopping(early_stopping: Optional[Dict[str, Any]]) -> Optional[callbacks.EarlyStopping]:
+    """Cria um callback de parada antecipada com base nas configurações especificadas."""
+    if early_stopping is None:
+        return None
+    return callbacks.EarlyStopping(
+        monitor=early_stopping["val_loss"],
+        min_delta=early_stopping["min_delta"],
+        patience=early_stopping["patience"],
         restore_best_weights=True,
         verbose=2
     )
-    optimizer = optimizers.Adam(learning_rate=initial_learning_rate)
-    model.compile(optimizer=optimizer, loss="sparse_categorical_crossentropy", metrics=["accuracy"])
+
+
+def get_validation_dataset(training_dataset, validation_split: float, batch_size: int):
+    """Retorna um dataset de validação com base no dataset de treino e no split especificado."""
+    training_size = 60000  # tamanho do dataset MNIST
+    validation_size = int(training_size * validation_split)
+    validation_dataset = training_dataset.take(validation_size // batch_size)
+    return validation_dataset
+
+
+def plot_two_metrics(history, metric1, metric2, title: str, xlabel: str, ylabel: str, legend) -> None:
+    """Plota dois métricas de um histórico de treinamento."""
+    plt.plot(history.history[metric1])
+    plt.plot(history.history[metric2])
+    plt.title(title)
+    plt.ylabel(ylabel)
+    plt.xlabel(xlabel)
+    plt.legend(legend, loc="upper left")
+    plt.show()
+
+
+def train_model(training_dataset, network: CNNInput, batch_size: int = 128) -> models.Sequential:
+    """Treina a rede neural especificada e salva os resultados."""
+    validation_dataset = get_validation_dataset(
+        training_dataset,
+        validation_split=0.1,
+        batch_size=batch_size
+    )
+
+    # Definindo a arquitetura da rede neural
+    model = create_model(network.layers)
+    optimizer = create_optimizer(network.optmizer, network.learning_rate)
+    model.compile(optimizer=optimizer, loss=network.loss_function, metrics=["accuracy", network.loss_function])
     model.summary()
 
     # Salvando modelo
-    hyperparameters = {
-        "conv_layers": [
-            {"filters": layer.filters, "kernel_size": layer.kernel_size, "activation": layer.activation.__name__}
-            for layer in model.layers if isinstance(layer, layers.Conv2D)
-        ],
-        "dense_layers": [
-            {"units": layer.units, "activation": layer.activation.__name__}
-            for layer in model.layers if isinstance(layer, layers.Dense)
-        ],
-        "pooling_size": (2, 2),
-        "initial_learning_rate": initial_learning_rate,
-        "dropout_rate": dropout_rate,
-        "l2_regularization": l2_regularization,
-        "epocas": epochs,
-        "batch_size": batch_size,
-        "optimizer": "Adam",
-        "funcao_erro": "sparse_categorical_crossentropy",
-        "parada_antecipada": {
-            "min_delta": parada_antecipada.min_delta,
-            "patience": parada_antecipada.patience,
-        }
-
-    }
     current_path = os.path.dirname(__file__)
-    path_Models = os.path.join(current_path, '..', 'Models')
-    path_Outputs = os.path.join(current_path, '..', 'Outputs')
-    save_hyperparameters(hyperparameters, path_Models)
-    save_weights(model, "pesos_iniciais", path_Models)
+    models_path = os.path.join(current_path, '..', 'Models')
+    save_hyperparameters(network.model_dump(mode="json"), models_path)
+    save_weights(model, "pesos_iniciais", models_path)
+
+    parada_antecipada = create_early_stopping(network.early_stopping)
+    if parada_antecipada is not None:
+        callbacks = [parada_antecipada, LossHistory()]
+    else:
+        callbacks = [LossHistory()]
 
     # Treinando o modelo
     history = model.fit(
-        training_dataset, epochs=epochs,
+        training_dataset, epochs=network.epochs,
         batch_size=batch_size,
         validation_data=validation_dataset,
-        callbacks=[parada_antecipada, LossHistory()],
+        callbacks=callbacks,
         verbose=2
     )
 
     # Salvando pesos finais e modelo
-    save_weights(model, "pesos_finais", path_Models)
-    save_model(model, "modelo", path_Models)
-
-    # Avaliando o modelo
-    metrics = model.evaluate(test_dataset, verbose=2)
-    print(f"Test Loss: {metrics[0]}")
-    print(f"Test Accuracy: {metrics[1]}")
+    save_weights(model, "pesos_finais", models_path)
+    save_model(model, "modelo", models_path)
 
     # Acurácias de treino e validação
-    plt.plot(history.history["accuracy"])
-    plt.plot(history.history["val_accuracy"])
-    plt.title("Acurácia do Modelo")
-    plt.ylabel("Acurácia")
-    plt.xlabel("Epoca")
-    plt.legend(["Treino", "Validação"], loc="upper left")
+    plot_two_metrics(
+        history,
+        "accuracy",
+        "val_accuracy",
+        "Acurácia do Modelo",
+        "Epoca",
+        "Acurácia",
+        ["Treino", "Validação"])
     plt.show()
 
-    # Previsões no dataset de teste
-    test_predictions = model.predict(test_dataset)
-    test_labels = []
-    for _, label in test_dataset:
-        test_labels.extend(label.numpy())
-    test_predictions = tf.argmax(test_predictions, axis=1)
-
-    prediction_path = os.path.join(path_Outputs, "predictions.csv")
-    np.savetxt(prediction_path, test_predictions.numpy(), delimiter=",", fmt="%d")  # Salvando previsões
-
-    # Matriz de confusão
-    matriz_confusao = confusion_matrix(test_labels, test_predictions)
-    ConfusionMatrixDisplay(matriz_confusao).plot()
-
-    matrix_path = os.path.join(path_Outputs, "matriz_confusao.png")
-    plt.savefig(matrix_path)
-
+    # Erros de treino e validação
+    plot_two_metrics(
+        history,
+        "loss",
+        "val_loss",
+        "Erro do Modelo",
+        "Epoca",
+        "Erro",
+        ["Treino", "Validação"])
     plt.show()
+
+    return model

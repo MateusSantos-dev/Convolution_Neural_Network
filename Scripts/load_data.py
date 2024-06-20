@@ -11,7 +11,7 @@ def convert_label_to_fibonacci_binary(image, label) -> tuple:
     return image, binary_label
 
 
-def load_data(batch_size: int = 128, shuffle_buffer_size: int = 1000, binary_classification=False) -> tuple:
+def load_data(batch_size: int = 128, shuffle_buffer_size: int = 1000, binary_classification: bool = False) -> tuple:
     """Carrega o dataset MNIST e retorna os datasets de treino e teste."""
     mnist_data = tfds.load(name="mnist", as_supervised=True)
     mnist_train, mnist_test = mnist_data["train"], mnist_data["test"]
