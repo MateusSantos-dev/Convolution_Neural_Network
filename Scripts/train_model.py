@@ -95,7 +95,6 @@ def create_early_stopping(early_stopping: Optional[Dict[str, Any]]) -> Optional[
     if early_stopping is None:
         return None
     return callbacks.EarlyStopping(
-        monitor=early_stopping["val_loss"],
         min_delta=early_stopping["min_delta"],
         patience=early_stopping["patience"],
         restore_best_weights=True,
