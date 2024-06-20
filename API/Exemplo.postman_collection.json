@@ -1,0 +1,28 @@
+{
+	"info": {
+		"_postman_id": "0b59154e-6254-460e-b27f-536ad6cc3fc4",
+		"name": "IA-EP2",
+		"schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json",
+		"_exporter_id": "34572822"
+	},
+	"item": [
+		{
+			"name": "Treinar",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"classification_type\": \"binary\",\r\n    \"layers\": \r\n    [\r\n        {\r\n            \"type\": \"conv\",\r\n            \"filters\": 32,\r\n            \"kernel_size\": [3, 3],\r\n            \"activation\": \"relu\"\r\n        },\r\n        {\r\n            \"type\": \"pool\",\r\n            \"pool_size\": [2, 2]\r\n        },\r\n        {\r\n            \"type\": \"conv\",\r\n            \"filters\": 64,\r\n            \"kernel_size\": [3, 3],\r\n            \"activation\": \"relu\"\r\n        },\r\n        {\r\n            \"type\": \"pool\",\r\n            \"pool_size\": [2, 2]\r\n        },\r\n        {\r\n            \"type\": \"conv\",\r\n            \"filters\": 64,\r\n            \"kernel_size\": [3, 3],\r\n            \"activation\": \"relu\"\r\n        },\r\n        {\r\n            \"type\": \"pool\",\r\n            \"pool_size\": [2, 2]\r\n        },\r\n        {\r\n            \"type\": \"flatten\"\r\n        },\r\n        {\r\n            \"type\": \"dense\",\r\n            \"units\": 64,\r\n            \"activation\": \"relu\",\r\n            \"lambda_l2\": 0.001\r\n        },\r\n        {\r\n            \"type\": \"dropout\",\r\n            \"rate\": 0.1\r\n        },\r\n        {\r\n            \"type\": \"dense\",\r\n            \"units\": 2,\r\n            \"activation\": \"softmax\"\r\n        }\r\n        ],\r\n    \"epochs\": 10,\r\n    \"loss_function\": \"sparse_categorical_crossentropy\",\r\n    \"optmizer\": \"Adam\",\r\n    \"learning_rate\": null,\r\n    \"early_stopping\": null\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": "http://0.0.0.0:6000/treinar"
+			},
+			"response": []
+		}
+	]
+}
