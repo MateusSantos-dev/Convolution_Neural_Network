@@ -22,6 +22,7 @@ def evaluate_model(model: models.Sequential, test_dataset: tf.data.Dataset) -> N
     # Salvando previsões
     current_path = os.path.dirname(__file__)
     outputs_path = os.path.join(current_path, '..', 'Outputs')
+    os.makedirs(outputs_path, exist_ok=True)
     prediction_path = os.path.join(outputs_path, "predictions.csv")
     np.savetxt(prediction_path, test_predictions.numpy(), delimiter=",", fmt="%d")
 
