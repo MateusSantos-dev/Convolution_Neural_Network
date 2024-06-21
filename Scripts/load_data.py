@@ -2,7 +2,10 @@ import tensorflow_datasets as tfds
 import tensorflow as tf
 
 
-def convert_label_to_fibonacci_binary(image, label) -> tuple:
+def convert_label_to_fibonacci_binary(
+        image: tf.Tensor,
+        label: tf.Tensor
+) -> tuple[tf.Tensor, tf.Tensor]:
     """Converte o label para 1 se for um dígito da sequência de Fibonacci e 0 caso contrário."""
     fibonacci = tf.constant([0, 1, 2, 3, 5, 8], dtype=tf.int64)
     label = tf.cast(label, tf.int64)
@@ -11,7 +14,11 @@ def convert_label_to_fibonacci_binary(image, label) -> tuple:
     return image, binary_label
 
 
-def load_data(batch_size: int = 128, shuffle_buffer_size: int = 1000, binary_classification: bool = False) -> tuple:
+def load_data(
+        batch_size: int = 128,
+        shuffle_buffer_size: int = 1000,
+        binary_classification: bool = False
+) -> tuple[tf.data.Dataset, tf.data.Dataset]:
     """Carrega o dataset MNIST e retorna os datasets de treino e teste."""
     mnist_data = tfds.load(name="mnist", as_supervised=True)
     mnist_train, mnist_test = mnist_data["train"], mnist_data["test"]

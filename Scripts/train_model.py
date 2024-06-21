@@ -1,23 +1,27 @@
 import json
 import os
 import matplotlib.pyplot as plt
+import tensorflow as tf
 from API.schemas import CNNInput
 from keras import layers, models, callbacks, regularizers, optimizers
 from typing import List, Dict, Any, Optional
 
 
 class LossHistory(callbacks.Callback):
+    """Callback para salvar o histórico de perda e acurácia do modelo."""
 
     def on_train_begin(self, logs=None) -> None:
+        """Cria o arquivo de histórico de perda e acurácia."""
         with open("Outputs/loss_history.txt", "w") as arquivo:
             arquivo.write("Inicio do treinamento\n")
 
     def on_epoch_end(self, epoch, logs=None) -> None:
+        """Salva a perda e acurácia do modelo a cada época."""
         with open("Outputs/loss_history.txt", "a") as arquivo:
             arquivo.write(f"Epoca {epoch + 1} - Acuracia: {logs['accuracy']}, Erro: {logs['loss']}\n")
 
 
-def save_weights(model: models.Model, filename: str, path: str) -> None:
+def save_weights(model: models.Sequential, filename: str, path: str) -> None:
     """
     Salva os pesos do modelo no diretório especificado.
     Arquivo salvo com nome {filename}.weights.h5
@@ -38,7 +42,7 @@ def save_hyperparameters(hyperparameters: dict, path: str) -> None:
         json.dump(hyperparameters, file)
 
 
-def save_model(model: models.Model, filename: str, path: str) -> None:
+def save_model(model: models.Sequential, filename: str, path: str) -> None:
     """
     Salva o modelo no diretório especificado.
     Arquivo com nome {filename}.keras
@@ -102,7 +106,11 @@ def create_early_stopping(early_stopping: Optional[Dict[str, Any]]) -> Optional[
     )
 
 
-def get_validation_dataset(training_dataset, validation_split: float, batch_size: int):
+def get_validation_dataset(
+        training_dataset: tf.data.Dataset,
+        validation_split: float,
+        batch_size: int
+) -> tf.data.Dataset:
     """Retorna um dataset de validação com base no dataset de treino e no split especificado."""
     training_size = 60000  # tamanho do dataset MNIST
     validation_size = int(training_size * validation_split)
@@ -110,7 +118,15 @@ def get_validation_dataset(training_dataset, validation_split: float, batch_size
     return validation_dataset
 
 
-def plot_two_metrics(history, metric1, metric2, title: str, xlabel: str, ylabel: str, legend) -> None:
+def plot_two_metrics(
+        history: callbacks.History,
+        metric1: str,
+        metric2: str,
+        title: str,
+        xlabel: str,
+        ylabel: str,
+        legend: str | List[str]
+) -> None:
     """Plota dois métricas de um histórico de treinamento."""
     plt.plot(history.history[metric1])
     plt.plot(history.history[metric2])
@@ -121,7 +137,11 @@ def plot_two_metrics(history, metric1, metric2, title: str, xlabel: str, ylabel:
     plt.show()
 
 
-def train_model(training_dataset, network: CNNInput, batch_size: int = 128) -> models.Sequential:
+def train_model(
+        training_dataset: tf.data.Dataset,
+        network: CNNInput,
+        batch_size: int = 128
+) -> models.Sequential:
     """Treina a rede neural especificada e salva os resultados."""
     validation_dataset = get_validation_dataset(
         training_dataset,
