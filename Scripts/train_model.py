@@ -161,6 +161,7 @@ def train_model(
     save_hyperparameters(network.model_dump(mode="json"), models_path)
     save_weights(model, "pesos_iniciais", models_path)
 
+    # Cria callback de parada antecipada
     parada_antecipada = create_early_stopping(network.early_stopping)
     if parada_antecipada is not None:
         callbacks = [parada_antecipada, LossHistory()]
@@ -169,7 +170,8 @@ def train_model(
 
     # Treinando o modelo
     history = model.fit(
-        training_dataset, epochs=network.epochs,
+        training_dataset,
+        epochs=network.epochs,
         batch_size=batch_size,
         validation_data=validation_dataset,
         callbacks=callbacks,
